@@ -1,0 +1,73 @@
+version: '3.8'
+
+#Docker Networks
+networks:
+  net:
+    driver: overlay
+
+#Volumes
+volumes:
+  dbdata:
+    driver: local
+
+# Workflow
+services:
+  mysql:
+    image: mysql:5.7.29
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: secret
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ./compose/mysql/my.cnf:/etc/mysql/my.cnf
+      - dbdata:/var/lib/mysql/
+    networks:
+      - net
+
+  laravel:
+    build:
+      context: .
+      dockerfile: ./compose/laravel/Dockerfile
+    volumes:
+      - ./src/laravel:/var/www/html:delegated
+      - ./compose/laravel/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    depends_on:
+      - mysql
+    # ports:
+    #   - "8888:8888"
+    networks:
+      - net
+
+  client:
+    restart: always
+    build:
+      context: .
+      dockerfile: ./compose/client/Dockerfile
+    volumes:
+      - ./src/client:/app
+    # ports:
+    #   - "7777:7777"
+    networks:
+      - net
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./compose/nginx/Dockerfile
+    ports:
+      - 80:80
+      - 9001:9001
+    volumes:
+      - ./src/laravel:/var/www/html:delegated
+    depends_on:
+      - laravel
+      - mysql
+    networks:
+      - net

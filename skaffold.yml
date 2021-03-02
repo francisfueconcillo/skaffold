@@ -1,0 +1,44 @@
+apiVersion: skaffold/v2beta10
+kind: Config
+build:
+  local:
+    push: false
+  artifacts:
+    - image: skaffold_laravel
+      docker:
+        dockerfile: ./compose/laravel/Dockerfile
+    - image: skaffold_client
+      docker:
+        dockerfile: ./compose/client/Dockerfile
+deploy:
+  kubectl:
+    manifests:
+      - kubernetes/mysql/*
+      - kubernetes/client/*
+      - kubernetes/laravel/*
+      - kubernetes/ingress/*
+profiles:
+  - name: init
+    activation:
+      - kubeContext: minikube
+        command: init
+    deploy:
+      kubectl:
+        manifests:
+          - kubernetes/mysql/*
+          - kubernetes/client/*
+          - kubernetes/laravel/*
+          - kubernetes/ingress/*
+  - name: dev
+    activation:
+      - kubeContext: minikube
+        command: dev
+portForward:
+  - resourceType: service
+    resourceName: client-service
+    port: 7777
+    localPort: 7777
+  - resourceType: service
+    resourceName: laravel-service
+    port: 8888
+    localPort: 8888
